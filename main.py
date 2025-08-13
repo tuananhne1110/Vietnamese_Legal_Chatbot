@@ -34,12 +34,22 @@ async def lifespan(app: FastAPI):
     # Lazy load heavy resources during startup
     logger.info("Application startup: Initializing resources...")
     from backend.configs.settings import get_qdrant_client, get_supabase_client, get_embedding_model, get_voice_model
+    from backend.services.reranker_service import get_reranker
+    from backend.embeddings import get_embedding  # This will trigger eager loading
     
     # Preload clients/models to ensure they are available for dependency injection
     get_qdrant_client()
     get_supabase_client()
     get_embedding_model()
     get_voice_model()  # Preload voice model if configured
+    get_reranker()  # Preload BGE reranker
+    
+    # Test embedding to ensure it's working
+    try:
+        get_embedding("test")
+        logger.info("Embedding model validated successfully")
+    except Exception as e:
+        logger.error(f"Embedding model validation failed: {e}")
     
     logger.info("Resources initialized. Application ready.")
     yield

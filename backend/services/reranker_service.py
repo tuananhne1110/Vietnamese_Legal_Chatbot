@@ -148,7 +148,8 @@ class BGEReranker:
             'score_range': max_score - min_score
         }
 
-# Global instance
-bge_reranker = BGEReranker()
+# Global instance - eager loading
+_bge_reranker = BGEReranker()
+
 def get_reranker() -> BGEReranker:
-    return bge_reranker 
+    return _bge_reranker 

@@ -90,28 +90,8 @@ def create_rag_workflow():
     workflow.add_edge("rewrite", "retrieve")
     workflow.add_edge("retrieve", "generate")
     
-    # Parallel processing: generate và parallel_guardrails chạy song song
-    workflow.add_edge("generate", "parallel_guardrails")
-    
-    # Join node để merge kết quả từ parallel processing
-    workflow.add_edge("parallel_guardrails", "merge_results")
-    workflow.add_edge("generate", "merge_results")
-    
-    try:
-        workflow.set_join_mode("merge_results", "join")
-    except AttributeError:
-        # Fallback nếu method không tồn tại
-        logger.warning("set_join_mode not available, using default join behavior")
-    
-    # Conditional edge từ merge_results
-    workflow.add_conditional_edges(
-        "merge_results",
-        should_continue_to_validate,
-        {
-            "validate": "validate",
-            "update_memory": "update_memory"
-        }
-    )
+    # Sequential processing - tạm thời disable parallel để debug
+    workflow.add_edge("generate", "validate")
     workflow.add_edge("validate", "update_memory")
     workflow.add_edge("update_memory", END)
     

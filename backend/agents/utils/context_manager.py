@@ -136,7 +136,6 @@ class ContextManager:
     def create_query_rewrite_prompt(self, history_context: str) -> str:
         """
         Tạo prompt cho LLM để rewrite câu hỏi
-        Không hardcode patterns, để LLM tự hiểu và xử lý
         """
         prompt = f"""
 Hãy dựa vào toàn bộ lịch sử hội thoại và câu hỏi mới của user, nếu câu hỏi mới không đủ rõ/ngắn/gãy ý, hãy tự động diễn giải lại thành một câu hỏi hoàn chỉnh, đầy đủ thông tin từ lịch sử. Nếu đã rõ thì giữ nguyên.

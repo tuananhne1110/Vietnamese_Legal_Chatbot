@@ -76,25 +76,24 @@ async def generate_answer(state: ChatState) -> ChatState:
 
         return state
     loop = asyncio.get_running_loop()
-    # Format docs để phù hợp với prompt_templates
-    formatted_docs = []
+    # Tạo context trực tiếp từ documents
+    context_parts = []
     for doc in docs:
-        doc_dict = {
-            "content": doc.page_content,
-            "page_content": doc.page_content,
-            **doc.metadata
-        }
-        formatted_docs.append(doc_dict)
+        content = doc.page_content
+        metadata = doc.metadata
+        # Thêm metadata vào content nếu có
+        if metadata:
+            metadata_str = " | ".join([f"{k}: {v}" for k, v in metadata.items() if v])
+            if metadata_str:
+                content = f"[{metadata_str}]\n{content}"
+        context_parts.append(content)
     
-    # Tạo prompt trực tiếp từ prompt_templates
-    prompt_template = prompt_templates.get_prompt_by_category()
-    formatted_context = prompt_templates.format_context_by_category(formatted_docs)
-    prompt = prompt_template.format(
-        context=formatted_context,
-        question=question
-    )
+    context = "\n\n".join(context_parts)
     
-    system_prompt = prompt_templates.get_prompt_by_category()
+    # Tạo prompt trực tiếp
+    prompt = prompt_templates.get_prompt_by_category(context=context, question=question)
+    
+    system_prompt = prompt_templates.get_main_prompt()
     state["prompt"] = prompt
     logger.info(f"[Generate] Logging input/model/metadata: input={prompt}, model={model_name}")
     token_input = 0

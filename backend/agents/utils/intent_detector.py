@@ -140,7 +140,6 @@ class TextUtils:
             return []
 
 
-
 class IntentDetector:
     def __init__(self, 
                 service_name='bedrock-runtime', 
@@ -186,7 +185,7 @@ class IntentDetector:
         try:
             logger.info(f"[IntentDetector] Calling Bedrock with model: {self.model_id}")
             # Lấy router system prompt từ prompt_templates
-            router_prompt = prompt_templates.get_intent_router_prompt().format(question=query)
+            router_prompt = prompt_templates.get_intent_router_prompt(question=query)
             
             response = self.bedrock_runtime_client.converse(
                 modelId=self.model_id,
@@ -273,7 +272,6 @@ class IntentDetector:
                 collection = "form_chunks"
             elif intent_type == IntentType.TERM:
                 collection = "legal_chunks"  # Chuyển term search sang legal_chunks
-                logger.info(f"[IntentDetector] TERM intent mapped to legal_chunks (term_chunks removed)")
             elif intent_type == IntentType.PROCEDURE:
                 collection = "procedure_chunks"
             elif intent_type == IntentType.TEMPLATE:

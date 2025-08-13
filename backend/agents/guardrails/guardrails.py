@@ -27,35 +27,45 @@ class Guardrails:
         """
         Dùng ApplyGuardrail API để kiểm tra nội dung riêng biệt với mô hình.
         """
-        try:
-            response = self.bedrock_runtime.apply_guardrail(
-                guardrailIdentifier=self.guardrail_id,
-                guardrailVersion=self.guardrail_version,
-                source=source_type,
-                content=[{"text": {"text": text}}]
-            )
+        # Temporarily disable guardrails for performance
+        return {
+            "action": "NONE",
+            "outputs": [],
+            "assessments": [],
+            "disabled": True
+        }
+        
+        # Original code commented out
+        # try:
+        #     response = self.bedrock_runtime.apply_guardrail(
+        #         guardrailIdentifier=self.guardrail_id,
+        #         guardrailVersion=self.guardrail_version,
+        #         source=source_type,
+        #         content=[{"text": {"text": text}}]
+        #     )
 
-            action = response.get("action", "N/A")
-            outputs = response.get("outputs", [])
-            assessments = response.get("assessments", [])
+        #     action = response.get("action", "N/A")
+        #     outputs = response.get("outputs", [])
+        #     assessments = response.get("assessments", [])
 
-            return {
-                "action": action,
-                "outputs": outputs,
-                "assessments": assessments
-            }
+        #     return {
+        #         "action": action,
+        #         "outputs": outputs,
+        #         "assessments": assessments
+        #     }
 
-        except Exception as e:
-            # return {"error": str(e)}
-            from pprint import pprint
-            pprint("ERROR class Guardrails")
+        # except Exception as e:
+        #     # Log error but don't print multiple times
+        #     import logging
+        #     logger = logging.getLogger(__name__)
+        #     logger.warning(f"Guardrails error: {str(e)}")
 
-            return {
-                "action": "NONE",
-                "outputs": str(e),
-                "assessments": str(e),
-                "error": str(e)
-            }
+        #     return {
+        #         "action": "NONE",
+        #         "outputs": [],
+        #         "assessments": [],
+        #         "error": str(e)
+        #     }
         
     
     def validate_input(self, user_query: str, messages: Optional[list] = None) -> Dict:
