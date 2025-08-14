@@ -1,30 +1,40 @@
-﻿from backend.agents.state import ChatState
-from backend.agents.guardrails.guardrails import Guardrails
 import time
-import traceback
-import os
-from dotenv import load_dotenv
-load_dotenv()
+import logging
+from backend.agents.state import ChatState
+from backend.agents.guardrails.guardrails import Guardrails
 
-guardrails = Guardrails(
-    guardrail_id= os.getenv("GUARDRAIL_ID"),
-    guardrail_version= os.getenv("GUARDRAIL_VERSION"),
-    region_name="us-east-1"
-)
+guardrails = Guardrails()
+logger = logging.getLogger(__name__)
 
 async def guardrails_input(state: ChatState) -> ChatState:
+    """
+    Node để validate input trước khi xử lý.
+    """
     start_time = time.time()
-    result = guardrails.validate_input(state["question"])
+    
+    question = state["question"]
+    messages = state.get("messages", [])
+    
+    logger.info(f"[GuardrailsInput] Validating input: {question[:50]}...")
+    
     try:
-        if not result["is_safe"]:
-            # print("_Lỗi rồi_")
-
-            state["answer"] = guardrails.get_fallback_message(result["block_reason"])
+        # Validate input
+        validation_result = guardrails.validate_input(question, messages)
+        
+        if not validation_result["is_safe"]:
+            logger.warning(f"[GuardrailsInput] Input validation failed: {validation_result['block_reason']}")
             state["error"] = "input_validation_failed"
+            state["answer"] = validation_result["block_reason"]
         else:
-            pass
+            logger.info(f"[GuardrailsInput] Input validation passed")
+        
     except Exception as e:
-        tb = traceback.format_exc()
+        logger.error(f"[GuardrailsInput] Error during input validation: {e}")
         state["error"] = "input_validation_exception"
-    return state 
-
+        state["answer"] = "Xin lỗi, có lỗi xảy ra trong quá trình kiểm tra đầu vào."
+    
+    duration = time.time() - start_time
+    state["processing_time"]["input_validation"] = duration
+    logger.info(f"[GuardrailsInput] Input validation: {duration:.4f}s")
+    
+    return state

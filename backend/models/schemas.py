@@ -14,7 +14,7 @@ class Source(BaseModel):
     file_url: Optional[str] = None
     metadata: Optional[dict] = None
     
-    # Legal chunks fields (cấu trúc mới: chỉ có Chương và Điều)
+    # Legal chunks fields
     law_name: Optional[str] = None
     law_code: Optional[str] = None
     law_type: Optional[str] = None

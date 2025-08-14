@@ -83,45 +83,79 @@ async def retrieve_context(state: ChatState) -> ChatState:
         state["context_docs"] = []
         state["processing_time"]["context_retrieval"] = time.time() - start_time
         return state
+    
+    # Bắt đầu đo thời gian search
+    search_start_time = time.time()
+    
     loop = asyncio.get_running_loop()
     embedding = await loop.run_in_executor(None, get_embedding, query)
     logger.info(f"[Retrieve] Getting embedding for query: {query}")
-    all_docs = []
-    for collection in collections:
+    
+    # Parallel search function
+    async def search_collection_parallel(collection: str, embedding: List[float], query: str, search_limit: int):
+        """Search một collection và trả về documents"""
         try:
-            # Điều chỉnh search limit dựa trên số collections
-            if len(collections) == 1:
-                search_limit = 15  # Nếu chỉ 1 collection thì lấy nhiều hơn
-            elif len(collections) == 2:
-                search_limit = 8   # Nếu 2 collections thì lấy ít hơn mỗi collection
-            else:
-                search_limit = 6   # Nếu nhiều collections thì lấy ít nhất
             search_result = await loop.run_in_executor(None, search_qdrant, collection, embedding, query, search_limit)
-            
-            # search_qdrant now returns results directly (similar to vector retriever)
             results = search_result
             
             logger.info(f"[Retrieve] Found {len(results)} docs in {collection}")
             
+            docs = []
             for r in results:
                 if hasattr(r, 'payload') and r.payload:
                     content = r.payload.get("content") or r.payload.get("text", "")
-                    # Thêm vector score vào metadata để tracking
                     metadata = dict(r.payload)
                     metadata["vector_score"] = getattr(r, 'score', 0.0)
-                    all_docs.append(Document(page_content=content, metadata=metadata))
+                    metadata["collection"] = collection  # Thêm thông tin collection
+                    docs.append(Document(page_content=content, metadata=metadata))
                 elif isinstance(r, dict):
                     content = r.get("content") or r.get("text", "")
                     metadata = dict(r)
                     metadata["vector_score"] = r.get('score', 0.0)
-                    all_docs.append(Document(page_content=content, metadata=metadata))
+                    metadata["collection"] = collection  # Thêm thông tin collection
+                    docs.append(Document(page_content=content, metadata=metadata))
+            
+            return docs
         except Exception as e:
             logger.error(f"[Retrieve] Error searching collection {collection}: {e}")
             logger.warning(f"[Retrieve] Skipping collection: {collection}")
+            return []
+    
+    # Điều chỉnh search limit dựa trên số collections
+    if len(collections) == 1:
+        search_limit = 15  # Nếu chỉ 1 collection thì lấy nhiều hơn
+    elif len(collections) == 2:
+        search_limit = 8   # Nếu 2 collections thì lấy ít hơn mỗi collection
+    else:
+        search_limit = 6   # Nếu nhiều collections thì lấy ít nhất
+    
+    # Tạo tasks cho parallel search
+    search_tasks = [
+        search_collection_parallel(collection, embedding, query, search_limit)
+        for collection in collections
+    ]
+    
+    # Thực hiện parallel search
+    logger.info(f"[Retrieve] Starting parallel search for {len(collections)} collections")
+    search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+    
+    # Merge tất cả results
+    all_docs = []
+    for i, result in enumerate(search_results):
+        if isinstance(result, Exception):
+            logger.error(f"[Retrieve] Collection {collections[i]} failed: {result}")
             continue
+        all_docs.extend(result)
+    
+    # Kết thúc đo thời gian search
+    search_duration = time.time() - search_start_time
+    logger.info(f"[Retrieve] Vector search time: {search_duration:.4f}s for {len(collections)} collections")
     logger.info(f"[Retrieve] Total docs before rerank: {len(all_docs)}")
     
     if all_docs:
+        # Bắt đầu đo thời gian rerank
+        rerank_start_time = time.time()
+        
         # Giới hạn số docs để rerank (tối đa 20 docs)
         docs_to_rerank = min(len(all_docs), 20)
         reranker = get_reranker()
@@ -138,7 +172,10 @@ async def retrieve_context(state: ChatState) -> ChatState:
         
         logger.info(f"[Retrieve] After rerank filtering (score >= 0.3): {len(filtered_docs)} docs")
         
-        # Giảm số lượng kết quả cuối cùng xuống 10-15 docs thay vì 30
+        # Kết thúc đo thời gian rerank
+        rerank_duration = time.time() - rerank_start_time
+        logger.info(f"[Retrieve] Rerank time: {rerank_duration:.4f}s for {docs_to_rerank} docs")
+        
         final_limit = 12
         state["context_docs"] = filtered_docs[:final_limit]
     else:

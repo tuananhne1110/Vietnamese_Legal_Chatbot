@@ -9,7 +9,7 @@ from backend.agents.nodes.validate_node import validate_output
 from backend.agents.nodes.memory_node import update_memory
 from backend.agents.nodes.semantic_cache_node import semantic_cache
 from backend.agents.nodes.guardrails_node import guardrails_input
-from backend.agents.nodes.parallel_guardrails_node import parallel_guardrails_output
+# parallel_guardrails_node removed - using sequential processing
 from backend.configs import settings
 import os
 import logging
@@ -31,38 +31,6 @@ def should_continue_after_guardrails(state: ChatState) -> str:
         return "update_memory"  # Chuyển thẳng đến update_memory nếu bị chặn
     return "rewrite"  # Tiếp tục bình thường
 
-def should_run_parallel_guardrails(state: ChatState) -> str:
-    """Quyết định có chạy parallel guardrails hay không."""
-    if state.get("error") == "input_validation_failed":
-        return "update_memory"  # Bỏ qua nếu input đã bị chặn
-    return "parallel_guardrails"  # Chạy parallel guardrails
-
-def merge_parallel_results(state: ChatState) -> ChatState:
-    """Merge kết quả từ parallel processing."""
-    # Lấy kết quả từ cả generate và parallel_guardrails
-    generated_answer = state.get("answer", "")
-    guardrails_validated = state.get("guardrails_output_validated", False)
-    parallel_completed = state.get("parallel_guardrails_completed", False)
-    generation_completed = state.get("generation_completed", False)
-    
-    # Đảm bảo cả generation và parallel guardrails đều đã hoàn thành
-    if not generation_completed:
-        logger.info(f"[MergeResults] Waiting for generation to complete")
-        return state
-    
-    # Nếu parallel guardrails đã validate output, sử dụng answer đã validate
-    if guardrails_validated and parallel_completed:
-        state["final_answer"] = generated_answer
-        state["answer"] = generated_answer  # Cập nhật answer chính
-        logger.info(f"[MergeResults] Using guardrails validated answer")
-    else:
-        # Nếu chưa validate, giữ nguyên answer
-        state["final_answer"] = generated_answer
-        state["answer"] = generated_answer
-        logger.info(f"[MergeResults] Using original answer (guardrails not completed)")
-    
-    return state
-
 def should_continue_to_validate(state: ChatState) -> str:
     """Quyết định có tiếp tục validate hay không."""
     if state.get("error") == "input_validation_failed":
@@ -77,21 +45,43 @@ def create_rag_workflow():
     workflow.add_node("rewrite", rewrite_query_with_context)
     workflow.add_node("retrieve", retrieve_context)
     workflow.add_node("generate", generate_answer)
-    workflow.add_node("parallel_guardrails", parallel_guardrails_output)
-    workflow.add_node("merge_results", merge_parallel_results)
     workflow.add_node("validate", validate_output)
     workflow.add_node("update_memory", update_memory)
     
-    # Edges - Sequential flow
+    # Edges - Sequential flow with guardrails
     workflow.add_edge(START, "set_intent")
     workflow.add_edge("set_intent", "semantic_cache")
-    workflow.add_edge("semantic_cache", "guardrails_input")
-    workflow.add_edge("guardrails_input", "rewrite")
+    
+    # Conditional edge after guardrails input
+    workflow.add_conditional_edges(
+        "semantic_cache",
+        lambda state: "guardrails_input",  # Always go to guardrails first
+        {"guardrails_input": "guardrails_input"}
+    )
+    
+    # Conditional edge after guardrails - continue or skip to memory
+    workflow.add_conditional_edges(
+        "guardrails_input",
+        should_continue_after_guardrails,
+        {
+            "rewrite": "rewrite",
+            "update_memory": "update_memory"
+        }
+    )
+    
     workflow.add_edge("rewrite", "retrieve")
     workflow.add_edge("retrieve", "generate")
     
-    # Sequential processing - tạm thời disable parallel để debug
-    workflow.add_edge("generate", "validate")
+    # Conditional edge after generate - validate or skip to memory
+    workflow.add_conditional_edges(
+        "generate",
+        should_continue_to_validate,
+        {
+            "validate": "validate",
+            "update_memory": "update_memory"
+        }
+    )
+    
     workflow.add_edge("validate", "update_memory")
     workflow.add_edge("update_memory", END)
     

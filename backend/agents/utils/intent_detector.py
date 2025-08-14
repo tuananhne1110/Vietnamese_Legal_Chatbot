@@ -32,12 +32,12 @@ COLLECTION_MAP = {
 }
 
 COLLECTION_DESCRIPTIONS = {
-    IntentType.PROCEDURE: "Tra cứu thủ tục hành chính trong lĩnh vực cư trú: tên thủ tục, trình tự, thành phần hồ sơ, cách thực hiện.",
-    IntentType.LAW: "Tra cứu văn bản pháp lý, căn cứ pháp lý, chương điều khoản, mục liên quan đến cư trú,",
-    IntentType.FORM: "Hướng dẫn điền biểu mẫu, giấy tờ dùng trong lĩnh vực cư trú.",
-    IntentType.TERM: "Tìm kiếm định nghĩa, thuật ngữ pháp lý trong lĩnh vực cư trú.",
-    IntentType.TEMPLATE: "Biểu mẫu hành chính chính thức dùng để công dân hoặc người nước ngoài khai báo, đăng ký, thay đổi thông tin cư trú. Bao gồm các tờ khai như: Phiếu khai báo tạm trú, Tờ khai thay đổi thông tin cư trú,... thường được sử dụng trong các thủ tục hành chính liên quan đến cư trú.",
-    IntentType.GENERAL: "Trả lời các câu hỏi giao tiếp đơn giản, chào hỏi, cảm ơn, giới thiệu,... hoặc những nội dung không liên quan đến cư trú."
+    IntentType.PROCEDURE: "Thủ tục hành chính cư trú",
+    IntentType.LAW: "Văn bản pháp lý cư trú",
+    IntentType.FORM: "Hướng dẫn điền biểu mẫu",
+    IntentType.TERM: "Thuật ngữ pháp lý",
+    IntentType.TEMPLATE: "Biểu mẫu hành chính",
+    IntentType.GENERAL: "Câu hỏi chung"
 }
 
 MAPPING_IntentType = {
@@ -153,27 +153,94 @@ class IntentDetector:
         if not text:
             return text
         
-        try:
-            # Try to decode URL encoding
-            import urllib.parse
-            decoded = urllib.parse.unquote(text)
-            if decoded != text:
-                logger.info(f"[IntentDetector] Fixed URL encoding: '{text}' -> '{decoded}'")
-                return decoded
-        except Exception as e:
-            logger.warning(f"[IntentDetector] Failed to decode URL encoding: {e}")
+        original_text = text
         
+        # Step 1: Handle URL encoding (multiple passes)
         try:
-            # Try to fix common encoding issues
+            import urllib.parse
+            current_text = text
+            max_passes = 3
+            for pass_num in range(max_passes):
+                decoded = urllib.parse.unquote(current_text)
+                if decoded == current_text:
+                    break
+                logger.info(f"[IntentDetector] URL decode pass {pass_num + 1}: '{current_text}' -> '{decoded}'")
+                current_text = decoded
+            text = current_text
+        except Exception as e:
+            logger.warning(f"[IntentDetector] Failed URL decoding: {e}")
+        
+        # Step 2: Handle unicode escape sequences
+        try:
             if '\\u' in text or '\\x' in text:
                 decoded = text.encode('latin-1').decode('unicode_escape')
                 if decoded != text:
                     logger.info(f"[IntentDetector] Fixed unicode escape: '{text}' -> '{decoded}'")
-                    return decoded
+                    text = decoded
         except Exception as e:
-            logger.warning(f"[IntentDetector] Failed to fix unicode escape: {e}")
+            logger.warning(f"[IntentDetector] Failed unicode escape fix: {e}")
+        
+        # Step 3: Handle mixed encoding issues
+        try:
+            # Try to fix common Vietnamese character issues
+            replacements = {
+                'Ä': 'Đ', 'Äƒ': 'ă', 'Ä‚': 'Ă',
+                'Ã': 'ã', 'Ã¡': 'á', 'Ã ': 'à',
+                'Ã¢': 'â', 'Ã£': 'ã', 'Ã¤': 'ä',
+                'Ã©': 'é', 'Ã¨': 'è', 'Ãª': 'ê',
+                'Ã­': 'í', 'Ã¬': 'ì', 'Ã®': 'î',
+                'Ã³': 'ó', 'Ã²': 'ò', 'Ã´': 'ô',
+                'Ãº': 'ú', 'Ã¹': 'ù', 'Ã»': 'û',
+                'Ã½': 'ý', 'Ã¿': 'ÿ',
+                'Ã§': 'ç', 'Ã‡': 'Ç',
+                'Ã±': 'ñ', 'Ã': 'Ñ'
+            }
+            
+            for wrong, correct in replacements.items():
+                if wrong in text:
+                    text = text.replace(wrong, correct)
+                    logger.info(f"[IntentDetector] Fixed character: '{wrong}' -> '{correct}'")
+        except Exception as e:
+            logger.warning(f"[IntentDetector] Failed character replacement: {e}")
+        
+        # Step 4: Final UTF-8 validation
+        try:
+            if text != original_text:
+                # Ensure proper UTF-8 encoding
+                text = text.encode('utf-8', errors='ignore').decode('utf-8')
+        except Exception as e:
+            logger.warning(f"[IntentDetector] Failed UTF-8 validation: {e}")
+            return original_text
         
         return text
+    
+    def _is_garbled_text(self, text: str) -> bool:
+        """Kiểm tra xem text có bị lỗi encoding không"""
+        if not text:
+            return True
+        
+        # Kiểm tra các ký tự lỗi encoding phổ biến
+        garbled_patterns = [
+            'Ä', 'Ã', 'â', '€', '™', 'š', 'œ', 'ž', 'Ÿ',
+            '¡', '¢', '£', '¤', '¥', '¦', '§', '¨', '©',
+            'ª', '«', '¬', '®', '¯', '°', '±', '²', '³'
+        ]
+        
+        # Đếm số ký tự lỗi
+        garbled_count = sum(1 for char in text if char in garbled_patterns)
+        
+        # Nếu có quá nhiều ký tự lỗi (>20% text), coi như bị lỗi
+        if garbled_count > len(text) * 0.2:
+            logger.info(f"[IntentDetector] Text appears garbled: {garbled_count}/{len(text)} garbled chars")
+            return True
+        
+        # Kiểm tra có quá nhiều ký tự đặc biệt không
+        special_chars = sum(1 for char in text if ord(char) > 127)
+        if special_chars > len(text) * 0.5:
+            logger.info(f"[IntentDetector] Text has too many special chars: {special_chars}/{len(text)}")
+            return True
+        
+        return False
     
     def detect_intent(self, query: str, trace_id: str = None) -> List[Tuple[IntentType, str]]:
         logger.info(f"[IntentDetector] Processing query: '{query}'")
@@ -206,6 +273,12 @@ class IntentDetector:
                     new_query = item['toolUse']['input'].get('query', query)
                     # Fix encoding issue
                     new_query = self._fix_encoding(new_query)
+                    
+                    # Fallback: nếu query bị lỗi encoding, sử dụng query gốc
+                    if not new_query or len(new_query.strip()) < 3 or self._is_garbled_text(new_query):
+                        logger.warning(f"[IntentDetector] Invalid query after encoding fix, using original: '{new_query}' -> '{query}'")
+                        new_query = query
+                    
                     intent = MAPPING_IntentType.get(tool_name, IntentType.GENERAL)
                     logger.info(f"[IntentDetector] Found toolUse - tool_name: {tool_name}, intent: {intent}, query: '{new_query}'")
                     list_intent_type.append((intent, new_query))
@@ -221,6 +294,12 @@ class IntentDetector:
                             new_query = tool_result['parameters'].get('query', query)
                             # Fix encoding issue
                             new_query = self._fix_encoding(new_query)
+                            
+                            # Fallback: nếu query bị lỗi encoding, sử dụng query gốc
+                            if not new_query or len(new_query.strip()) < 3 or self._is_garbled_text(new_query):
+                                logger.warning(f"[IntentDetector] Invalid query after encoding fix, using original: '{new_query}' -> '{query}'")
+                                new_query = query
+                            
                             tool_name = tool_result.get('name')
                             intent = MAPPING_IntentType.get(tool_name, IntentType.GENERAL)
                             logger.info(f"[IntentDetector] From JSON - tool_name: {tool_name}, intent: {intent}, query: '{new_query}'")
@@ -237,27 +316,17 @@ class IntentDetector:
 
         logger.info(f"[IntentDetector] Raw detected intents: {list_intent_type}")
 
-        # Loại trùng intent (theo loại intent, giữ lại query đầu tiên cho mỗi intent)
-        seen = set()
-        unique_intents = []
-        for intent, q in list_intent_type:
-            if intent not in seen:
-                unique_intents.append((intent, q))
-                seen.add(intent)
-
-        logger.info(f"[IntentDetector] After deduplication: {unique_intents}")
-
         # Nếu có PROCEDURE thì tự động thêm LAW và FORM nếu chưa có
-        has_procedure = any(intent == IntentType.PROCEDURE for intent, _ in unique_intents)
+        has_procedure = any(intent == IntentType.PROCEDURE for intent, _ in list_intent_type)
         if has_procedure:
             logger.info(f"[IntentDetector] PROCEDURE intent detected, checking for auto-add LAW and FORM")
             for extra_intent in [IntentType.LAW, IntentType.FORM]:
-                if not any(intent == extra_intent for intent, _ in unique_intents):
+                if not any(intent == extra_intent for intent, _ in list_intent_type):
                     logger.info(f"[IntentDetector] Auto-adding {extra_intent} intent")
-                    unique_intents.append((extra_intent, query))
+                    list_intent_type.append((extra_intent, query))
 
-        logger.info(f"[IntentDetector] Final result: {unique_intents}")
-        return unique_intents
+        logger.info(f"[IntentDetector] Final result: {list_intent_type}")
+        return list_intent_type
 
 
     def get_search_collections(self, intents: List[Tuple[IntentType, str]]) -> List[str]:

@@ -27,7 +27,7 @@ class Guardrails:
         """
         Dùng ApplyGuardrail API để kiểm tra nội dung riêng biệt với mô hình.
         """
-        # Temporarily disable guardrails for performance
+        # Temporarily disable guardrails for performance - return safe result
         return {
             "action": "NONE",
             "outputs": [],
@@ -35,7 +35,7 @@ class Guardrails:
             "disabled": True
         }
         
-        # Original code commented out
+        # Original Bedrock API code - commented out due to configuration issues
         # try:
         #     response = self.bedrock_runtime.apply_guardrail(
         #         guardrailIdentifier=self.guardrail_id,

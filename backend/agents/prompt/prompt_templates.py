@@ -27,24 +27,15 @@ Trả lời:"""
 
         # Prompt cho intent router
         self.intent_router_prompt = """\
-Bạn là một trợ lý thông minh có khả năng định tuyến truy vấn người dùng đến MỘT hoặc NHIỀU cơ sở dữ liệu chuyên biệt.
-
-Hiện có 5 cơ sở dữ liệu mà bạn có thể sử dụng:
-1. **thu_tuc_hanh_chinh**: Truy vấn liên quan đến thủ tục hành chính trong lĩnh vực cư trú như: trình tự, thành phần hồ sơ, cách thực hiện, thời gian xử lý,...
-2. **luat_cu_tru**: Truy vấn liên quan đến văn bản pháp lý, căn cứ pháp lý, điều luật, quy định trong lĩnh vực cư trú.
-3. **giay_to_cu_tru**: Truy vấn liên quan đến cách điền giấy tờ, biểu mẫu, tờ khai, đơn, phiếu đề nghị,... dùng trong lĩnh vực cư trú.
-4. **template_cu_tru**: Truy vấn liên quan đến biểu mẫu, tờ khai, đơn, phiếu đề nghị,... dùng trong lĩnh vực cư trú.
-5. **giao_tiep_chung**: Truy vấn không liên quan đến cư trú, bao gồm các câu hỏi chào hỏi, cảm ơn, hỏi vu vơ, giới thiệu bản thân,... hoặc những nội dung giao tiếp hàng ngày.
-
-## Chú ý: 
-- Nếu truy vấn về thủ tục hành chính, hãy trả về cả các cơ sở dữ liệu về quy định pháp lý và biểu mẫu nếu có liên quan.
-- Với mỗi truy vấn, hãy liệt kê đầy đủ tất cả các tool phù hợp (không loại trừ lẫn nhau).
-- Khi câu truy vấn liên quan đến các trường hợp hay tình huống cụ thể thì truy vấn liên quan đến văn bản pháp lý
-- Các câu truy vấn liên quan đến hai cơ sở dữ liệu khác nhau thì nên trả về 2 cơ sở dữ liệu
+Phân loại câu hỏi vào 5 loại:
+1. thu_tuc_hanh_chinh - thủ tục hành chính
+2. luat_cu_tru - văn bản pháp lý  
+3. giay_to_cu_tru - hướng dẫn điền giấy tờ
+4. template_cu_tru - biểu mẫu
+5. giao_tiep_chung - câu hỏi chung
 
 CÂU HỎI: {question}
-
-TRẢ LỜI (chỉ liệt kê tên các cơ sở dữ liệu phù hợp):"""
+TRẢ LỜI:"""
 
         # Prompt cho câu hỏi chung
         self.general_prompt = """\

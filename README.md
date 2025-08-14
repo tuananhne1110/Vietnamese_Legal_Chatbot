@@ -1,69 +1,94 @@
 # 🤖 Vietnamese Legal Chatbot
 
-Một hệ thống chatbot thông minh hỗ trợ tư vấn pháp luật Việt Nam, được xây dựng với công nghệ AI tiên tiến và giao diện người dùng thân thiện.
+Hệ thống chatbot thông minh hỗ trợ tư vấn pháp luật Việt Nam, được xây dựng với LangGraph workflow và công nghệ AI hiện đại.
 
 ## 🌟 Tính Năng Chính
 
-### 💬 Chatbot Thông Minh
-- **RAG (Retrieval-Augmented Generation)**: Tìm kiếm và trả lời dựa trên cơ sở dữ liệu pháp luật Việt Nam
-- **Intent Detection**: Tự động phân loại loại câu hỏi (luật, biểu mẫu, thủ tục, v.v.)
-- **Semantic Cache**: Cache thông minh để tăng tốc độ phản hồi
-- **Guardrails**: Kiểm duyệt nội dung an toàn với AWS Bedrock Guardrails
-- **Streaming Response**: Trả lời real-time từng chunk
+### 💬 Chatbot AI
+- **RAG (Retrieval-Augmented Generation)**: Tìm kiếm và trả lời dựa trên cơ sở dữ liệu pháp luật
+- **Intent Detection**: Phân loại loại câu hỏi (law, procedure, form, term, template, general)
+- **Semantic Cache**: Cache thông minh với Redis để tăng tốc độ phản hồi
+- **Guardrails**: Kiểm duyệt nội dung đầu vào và đầu ra an toàn
+- **Streaming Response**: Trả lời real-time từng chunk với Server-Sent Events
 
-### 🎤 Đa Phương Tiện
-- **Voice-to-Text**: Chuyển đổi giọng nói thành văn bản với PhoWhisper
-- **Text-to-Speech**: Chuyển đổi văn bản thành giọng nói
-- **File Upload**: Hỗ trợ upload tài liệu để phân tích
+### 🎤 Voice-to-Text
+- **PhoWhisper Model**: Chuyển đổi giọng nói tiếng Việt thành văn bản
+- **Voice Recording**: Ghi âm và xử lý real-time
+- **WebRTC VAD**: Voice Activity Detection
 
-### 📋 Biểu Mẫu Thông Minh
-- **CT01 Form Filling**: Tự động điền biểu mẫu thuế thu nhập cá nhân
-- **CCCD Scanning**: Quét và trích xuất thông tin từ CCCD
-- **Form Validation**: Kiểm tra dữ liệu real-time
-- **Document Generation**: Tạo file PDF/Word từ form
+### 📋 CT01 Form Processing
+- **Form Generation**: Tạo biểu mẫu CT01 từ template HTML
+- **Document Export**: Xuất file PDF/DOCX từ form data
+- **CCCD Scanner**: Quét và trích xuất thông tin từ CCCD
 
-### 🔍 Tìm Kiếm Nâng Cao
-- **Semantic Search**: Tìm kiếm ngữ nghĩa trong vector database
-- **Multi-collection Retrieval**: Tìm kiếm đa nguồn dữ liệu
-- **Reranking**: Sắp xếp lại kết quả với BGE reranker
+### 🔍 Semantic Search
+- **Multi-collection Retrieval**: Tìm kiếm đa nguồn (legal, procedure, form, template, general)
+- **BGE Reranker**: Sắp xếp lại kết quả với BAAI/bge-reranker-v2-m3
 - **Source Citation**: Trích dẫn nguồn tham khảo chính xác
 
 ## 🏗️ Kiến Trúc Hệ Thống
 
-### Backend Architecture
+### Backend Structure
 ```
 backend/
 ├── agents/                 # LangGraph workflow
-│   ├── nodes/             # Workflow nodes
-│   ├── guardrails/        # AWS Bedrock Guardrails
+│   ├── nodes/             # Workflow nodes (8 nodes)
+│   │   ├── intent_node.py        # Intent detection
+│   │   ├── semantic_cache_node.py # Cache management
+│   │   ├── guardrails_node.py    # Input validation
+│   │   ├── rewrite_node.py       # Query rewriting
+│   │   ├── retrieve_node.py      # Document retrieval
+│   │   ├── generate_node.py      # Answer generation
+│   │   ├── validate_node.py      # Output validation
+│   │   └── memory_node.py        # Memory update
+│   ├── guardrails/        # Guardrails service
 │   ├── prompt/            # Prompt templates
-│   └── workflow.py        # Main workflow
+│   └── workflow.py        # Main LangGraph workflow
 ├── services/              # Core services
 │   ├── llm_service.py     # AWS Bedrock integration
 │   ├── qdrant_service.py  # Vector database
 │   ├── cache_service.py   # Redis cache
 │   └── reranker_service.py # BGE reranker
 ├── routers/               # API endpoints
-│   ├── langgraph_chat.py  # Main chat API
+│   ├── langgraph_chat.py  # Chat API
 │   ├── voice_to_text.py   # Voice processing
-│   └── ct01.py           # Form handling
-└── configs/               # Configuration
-    ├── settings.py        # App settings
-    └── configs.yaml       # Config file
+│   ├── ct01.py           # Form handling
+│   └── health.py         # Health checks
+├── configs/               # Configuration
+│   ├── settings.py        # App settings
+│   └── configs.yaml       # Model configs
+└── embeddings/            # Embedding service
 ```
 
-### Frontend Architecture
+### Frontend Structure
 ```
 frontend/src/
 ├── components/            # React components
 │   ├── ChatInterface.js   # Main chat UI
+│   ├── ChatWindow.js      # Chat display
+│   ├── MessageInput.js    # Input handling
+│   ├── VoiceRecorder.js   # Voice input
 │   ├── CT01Modal.js       # Form modal
-│   └── VoiceRecorder.js   # Voice input
-├── hooks/                 # Custom hooks
-│   ├── useChatStream.js   # Chat streaming
-│   └── useVoiceToText.js  # Voice processing
-└── services/              # API services
+│   ├── CT01Form.js        # Form component
+│   ├── CCCDScanner.js     # CCCD scanning
+│   └── FloatingChatbot.js # Widget mode
+├── hooks/                 # Custom React hooks
+├── services/              # API services
+└── config/                # Configuration
 ```
+
+## 🔄 LangGraph Workflow
+
+Hệ thống sử dụng sequential workflow với 8 bước:
+
+1. **Intent Detection** → Phân loại intent của câu hỏi
+2. **Semantic Cache** → Kiểm tra cache với threshold 0.85
+3. **Guardrails Input** → Validate đầu vào an toàn
+4. **Query Rewriting** → Cải thiện và làm sạch câu hỏi
+5. **Document Retrieval** → Tìm kiếm semantic trong Qdrant
+6. **Answer Generation** → Sinh câu trả lời với AWS Bedrock
+7. **Output Validation** → Validate đầu ra an toàn
+8. **Memory Update** → Cập nhật lịch sử và cache
 
 ## 🚀 Cài Đặt và Triển Khai
 
@@ -81,21 +106,13 @@ git clone <repository-url>
 cd Vietnamese_Legal_Chatbot
 ```
 
-### 2. Backend Setup
-
-#### Cài đặt dependencies
-```bash
-cd backend
-pip install -r ../shared/requirements.txt
-```
-
-#### Cấu hình môi trường
+### 2. Environment Setup
 Tạo file `.env` trong thư mục gốc:
 ```env
 # AWS Configuration
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_REGION=ap-southeast-1
+AWS_REGION=us-east-1
 
 # Qdrant Configuration
 QDRANT_URL=http://localhost:6333
@@ -114,193 +131,115 @@ APP_ENV=development
 LOG_LEVEL=INFO
 ```
 
-#### Cấu hình models
-Chỉnh sửa `backend/configs/configs.yaml`:
-```yaml
-models:
-  aws_bedrock:
-    llm_model_configs:
-      llama:
-        model_id: "meta.llama4-scout-17b-v1.0-q4_0"
-        region_name: "ap-southeast-1"
-    guardrails:
-      input_policy: "path/to/policy_input.yaml"
-      output_policy: "path/to/policy_output.yaml"
-  
-  hugging_face:
-    embedding_model_configs:
-      qwen:
-        model_name: "BAAI/bge-large-zh-v1.5"
-        device: "cuda"
-    reranker_model_configs:
-      bge:
-        model_name: "BAAI/bge-reranker-large"
-        device: "cuda"
+### 3. Backend Setup
+```bash
+# Install dependencies
+pip install -r shared/requirements.txt
+
+# Start backend
+python main.py
 ```
 
-### 3. Frontend Setup
-
-#### Cài đặt dependencies
+### 4. Frontend Setup
 ```bash
 cd frontend
 npm install
-```
-
-#### Cấu hình môi trường
-Tạo file `.env` trong thư mục `frontend`:
-```env
-REACT_APP_API_URL=http://localhost:8000
-REACT_APP_SUPABASE_URL=your_supabase_url
-REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
-REACT_APP_DEBUG=true
-```
-
-### 4. Database Setup
-
-#### Supabase Database
-Chạy các SQL scripts trong `frontend/SETUP.md` để tạo các bảng cần thiết.
-
-#### Qdrant Vector Database
-```bash
-# Khởi động Qdrant với Docker
-docker run -p 6333:6333 qdrant/qdrant
-
-# Hoặc sử dụng docker-compose
-docker-compose up qdrant
-```
-
-### 5. Khởi động với Docker
-
-#### Sử dụng docker-compose
-```bash
-# Khởi động toàn bộ hệ thống
-docker-compose -f docker/docker-compose.yml up -d
-
-# Xem logs
-docker-compose -f docker/docker-compose.yml logs -f
-```
-
-#### Khởi động thủ công
-```bash
-# Backend
-cd backend
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-# Frontend
-cd frontend
 npm start
 ```
 
-## 📊 Workflow LangGraph
+### 5. Docker Deployment
+```bash
+# Start all services
+docker-compose -f docker/docker-compose.yml up -d
 
-Hệ thống sử dụng LangGraph workflow với 8 bước chính:
-
-1. **Intent Detection**: Phân loại loại câu hỏi
-2. **Semantic Cache**: Kiểm tra cache thông minh
-3. **Guardrails Input**: Kiểm duyệt đầu vào
-4. **Query Rewriting**: Làm sạch và cải thiện câu hỏi
-5. **Semantic Retrieval**: Tìm kiếm thông tin liên quan
-6. **Answer Generation**: Sinh câu trả lời với LLM
-7. **Output Validation**: Kiểm duyệt đầu ra
-8. **Memory Update**: Cập nhật bộ nhớ và cache
+# Services included:
+# - Redis (port 6379)
+# - Backend (port 8000)
+# - Frontend (port 3000) 
+# - Nginx (port 80)
+```
 
 ## 🔧 API Endpoints
 
-### Chat Endpoints
-- `POST /chat/` - Chat thông thường
-- `POST /chat/stream` - Chat streaming
-- `POST /chat/session` - Tạo session mới
+### Chat API
+- `POST /` - Chat thông thường
+- `POST /stream` - Chat streaming với SSE
 
-### Voice Endpoints
-- `POST /voice/transcribe` - Chuyển đổi giọng nói thành văn bản
-- `POST /voice/synthesize` - Chuyển đổi văn bản thành giọng nói
+### Voice API
+- `POST /voice/start-recording` - Bắt đầu ghi âm
+- `POST /voice/stop-recording` - Dừng ghi âm
+- `GET /voice/status` - Trạng thái recording
+- `POST /voice/get-current-text` - Lấy text hiện tại
+- `GET /voice/model-info` - Thông tin model
 
-### CT01 Form Endpoints
+### CT01 Form API
 - `POST /ct01/generate` - Tạo file CT01
-- `POST /ct01/submit` - Nộp form trực tuyến
-- `GET /ct01/history` - Lấy lịch sử form
-- `GET /ct01/template` - Lấy template form
+- `POST /ct01/submit` - Xử lý form data
 
 ### Health Check
-- `GET /health` - Kiểm tra trạng thái hệ thống
+- `GET /health` - Trạng thái hệ thống
+- `GET /health/ready` - Readiness check
+- `GET /health/live` - Liveness check
 
 ## 🛠️ Công Nghệ Sử Dụng
 
 ### Backend
-- **FastAPI**: Web framework
-- **LangGraph**: Workflow orchestration
-- **AWS Bedrock**: LLM service (Llama 4 Scout 17B)
-- **Qdrant**: Vector database
-- **Redis**: Caching
-- **Supabase**: PostgreSQL database
-- **Sentence Transformers**: Embedding models
-- **BGE Reranker**: Document reranking
+- **FastAPI** (0.116.0) - Web framework
+- **LangGraph** (0.5.1) - Workflow orchestration
+- **AWS Bedrock** - LLM service (Llama 4 Scout 17B, Claude)
+- **Qdrant** (1.14.3) - Vector database
+- **Redis** (6.2.0) - Caching và session
+- **Supabase** (2.16.0) - PostgreSQL database
+- **Sentence Transformers** (5.0.0) - Embedding models
+- **BGE Reranker** - Document reranking
+- **PhoWhisper** - Vietnamese voice-to-text
 
 ### Frontend
-- **React 18**: UI framework
-- **Tailwind CSS**: Styling
-- **Axios**: HTTP client
-- **React Markdown**: Markdown rendering
-- **Lucide React**: Icons
+- **React** (18.2.0) - UI framework
+- **Tailwind CSS** - Styling
+- **Axios** - HTTP client
+- **React Markdown** - Markdown rendering
+- **Lucide React** - Icons
+
+### Models & AI
+- **LLM**: Meta Llama 4 Scout 17B / Anthropic Claude 3.5 Sonnet
+- **Embedding**: Qwen3-Embedding-0.6B / Alibaba GTE-multilingual
+- **Reranker**: BAAI/bge-reranker-v2-m3
+- **Voice**: vinai/PhoWhisper-medium
 
 ### DevOps
-- **Docker**: Containerization
-- **Docker Compose**: Multi-container orchestration
-- **Nginx**: Reverse proxy
-- **Redis**: Session storage
+- **Docker** - Containerization
+- **Nginx** - Reverse proxy
+- **Docker Compose** - Multi-container orchestration
 
-## 📈 Performance & Scalability
+## 📈 Performance Features
 
 ### Caching Strategy
-- **Semantic Cache**: Cache câu hỏi tương tự với similarity ≥ 0.85
-- **Redis Cache**: Session management và temporary data
-- **Vector Cache**: Embedding cache cho performance
+- **Semantic Cache**: Cache câu hỏi tương tự (similarity ≥ 0.85)
+- **Redis Cache**: Session management
+- **Model Caching**: Eager loading models at startup
 
 ### Optimization
-- **Streaming Response**: Real-time response streaming
-- **Parallel Processing**: Parallel guardrails validation
-- **Lazy Loading**: Lazy load heavy resources
-- **Connection Pooling**: Database connection optimization
+- **Streaming Response**: Real-time SSE streaming
+- **Sequential Processing**: Simplified workflow without parallel overhead
+- **Connection Pooling**: Database optimization
 
-## 🔒 Bảo Mật
+## 🔒 Security & Safety
 
 ### Content Safety
-- **AWS Bedrock Guardrails**: Input/Output validation
-- **Policy-based Filtering**: Custom safety policies
-- **Content Moderation**: Real-time content checking
+- **Guardrails**: Input và output validation
+- **Policy-based Filtering**: Custom safety policies  
+- **Sequential Validation**: Input → Processing → Output validation
 
 ### Data Protection
-- **Environment Variables**: Secure configuration management
-- **API Key Management**: Secure API key handling
-- **HTTPS**: Encrypted communication
-
-## 🧪 Testing
-
-### Backend Testing
-```bash
-cd backend
-pytest tests/
-```
-
-### Frontend Testing
-```bash
-cd frontend
-npm test
-```
-
-### Integration Testing
-```bash
-# Test API endpoints
-curl -X POST http://localhost:8000/chat/ \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Luật thuế thu nhập cá nhân quy định như thế nào?"}'
-```
+- **Environment Variables**: Secure configuration
+- **API Key Management**: Secure credentials handling
 
 ## 📝 Documentation
 
-- [Workflow Documentation](./docs/Workflow.md) - Chi tiết workflow LangGraph
-- [Frontend Setup](./frontend/SETUP.md) - Hướng dẫn setup frontend
-- [API Documentation](http://localhost:8000/docs) - Swagger UI (khi chạy backend)
+- [Workflow Documentation](./Workflow.md) - Chi tiết LangGraph workflow
+- [API Documentation](http://localhost:8000/docs) - Swagger UI
 
 ---
 
+**Lưu ý**: Hệ thống hiện tại đang disable Bedrock Guardrails API do cấu hình, sử dụng mock responses để đảm bảo performance.

@@ -9,13 +9,13 @@ class ChatState(TypedDict):
     question: str
     session_id: str
     intent: Optional[IntentType]
-    all_intents: List[tuple]  # Lưu tất cả intents
+    all_intents: List[tuple]  
     context_docs: List[Document]
     rewritten_query: Optional[str]
     sources: List[Dict[str, Any]]
-    answer: Annotated[Optional[str], "answer"]  # Use Annotated for parallel updates
-    error: Annotated[Optional[str], "error"]  # Use Annotated for parallel updates
+    answer: Annotated[Optional[str], "answer"]  
+    error: Annotated[Optional[str], "error"]  
     metadata: Dict[str, Any]
-    processing_time: Annotated[Dict[str, float], "processing_time"]  # Use Annotated for parallel updates
+    processing_time: Annotated[Dict[str, float], "processing_time"]  
     prompt: Optional[str]  # Add prompt for streaming
-    answer_chunks: Annotated[Optional[List[str]], "answer_chunks"]  # Use Annotated for parallel updates 
+    answer_chunks: Annotated[Optional[List[str]], "answer_chunks"]  
